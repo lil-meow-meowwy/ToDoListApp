@@ -12,8 +12,10 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var selectedTag = "All"
     @State private var showingNewTaskSheet = false
-    
+    @State private var showNewTagField = false
     @State private var newTag = ""
+    @State private var tagToDelete: String?
+    @State private var showDeleteAlert = false
 
     var filteredTasks: [ToDoItem] {
         manager.tasks.filter { task in
@@ -44,7 +46,7 @@ struct ContentView: View {
                 
                 // Tag Tabs
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack {
+                    HStack(spacing: 8) {
                         Button("All") {
                             selectedTag = "All"
                         }
@@ -52,33 +54,63 @@ struct ContentView: View {
                         .padding(.horizontal, 12)
                         .background(selectedTag == "All" ? Color.accentColor.opacity(0.2) : Color.clear)
                         .cornerRadius(10)
-                        
+
                         ForEach(manager.allTags, id: \.self) { tag in
-                            Button(tag) {
-                                selectedTag = tag
+                            Text(tag)
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 12)
+                                .background(selectedTag == tag ? Color.accentColor.opacity(0.2) : Color.gray.opacity(0.15))
+                                .cornerRadius(10)
+                                .onTapGesture {
+                                    selectedTag = tag
+                                }
+                                .onLongPressGesture {
+                                    tagToDelete = tag
+                                    showDeleteAlert = true
+                                }
+                        }
+
+                        // New tag input
+                        if showNewTagField {
+                            HStack {
+                                TextField("New tag", text: $newTag)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .frame(width: 120)
+
+                                Button(action: {
+                                    let trimmed = newTag.trimmingCharacters(in: .whitespaces)
+                                    if !trimmed.isEmpty && !manager.allTags.contains(trimmed) {
+                                        manager.allTags.append(trimmed)
+                                        selectedTag = trimmed
+                                    }
+                                    newTag = ""
+                                    showNewTagField = false
+                                }) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                }
+
+                                Button(action: {
+                                    newTag = ""
+                                    showNewTagField = false
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.red)
+                                }
                             }
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 12)
-                            .background(selectedTag == tag ? Color.accentColor.opacity(0.2) : Color.clear)
-                            .cornerRadius(10)
+                        } else {
+                            Button(action: {
+                                showNewTagField = true
+                            }) {
+                                Label("Add Tag", systemImage: "plus.circle")
+                                    .labelStyle(IconOnlyLabelStyle())
+                            }
                         }
                     }
                     .padding(.horizontal)
                 }
-                
-                // Add New Tag
-                HStack {
-                    TextField("New tag", text: $newTag)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                    Button("Add") {
-                        let trimmed = newTag.trimmingCharacters(in: .whitespaces)
-                        if !trimmed.isEmpty && !manager.allTags.contains(trimmed) {
-                            manager.allTags.append(trimmed)
-                            newTag = ""
-                        }
-                    }
-                }
-                .padding(.horizontal)
+
+
                 
                 // Task List
                 List {
@@ -100,6 +132,30 @@ struct ContentView: View {
                 NewTaskView(manager: manager)
             }
         }
+        .alert("Delete Tag?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                if let tag = tagToDelete {
+                    manager.allTags.removeAll { $0 == tag }
+
+                    // Optional: Also remove the tag from existing tasks
+                    manager.tasks = manager.tasks.map {
+                        var task = $0
+                        if task.tag == tag {
+                            task.tag = "General" // or ""
+                        }
+                        return task
+                    }
+
+                    if selectedTag == tag {
+                        selectedTag = "All"
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete the tag \"\(tagToDelete ?? "")\"?")
+        }
+
     }
 }
 
