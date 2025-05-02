@@ -33,7 +33,7 @@ class TaskManager: ObservableObject {
     
     func toggle(_ task:ToDoItem){
         if let index=tasks.firstIndex(where:{ $0.id==task.id}){
-            tasks[index].isCompleted.toggle()
+            tasks[index].isDone.toggle()
         }
     }
     
